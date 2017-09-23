@@ -36,9 +36,9 @@
 #   - unit-test-clean - cleans unit test state (particularly from docker)
 
 PROJECT_NAME   = hyperledger/fabric
-BASE_VERSION = 1.0.3
-PREV_VERSION = 1.0.2
-IS_RELEASE = false
+BASE_VERSION = 1.0.2
+PREV_VERSION = 1.0.1
+IS_RELEASE = true
 
 ifneq ($(IS_RELEASE),true)
 EXTRA_VERSION ?= snapshot-$(shell git rev-parse --short HEAD)
@@ -96,7 +96,7 @@ pkgmap.cryptogen      := $(PKGNAME)/common/tools/cryptogen
 
 include docker-env.mk
 
-all: native docker checks
+all: native docker
 
 checks: license spelling linter unit-test behave
 

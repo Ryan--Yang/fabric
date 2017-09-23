@@ -109,6 +109,14 @@ func generateDockerfile(platform Platform, cds *pb.ChaincodeDeploymentSpec, tls 
 	}
 
 	buf = append(buf, base)
+	//FROM hyperledger/fabric-baseos:x86_64-0.3.2
+	//ADD binpackage.tar /usr/local/bin
+	//LABEL org.hyperledger.fabric.chaincode.id.name="mycc" \
+	//org.hyperledger.fabric.chaincode.id.version="1.0" \
+	//org.hyperledger.fabric.chaincode.type="GOLANG" \
+	//org.hyperledger.fabric.version="1.0.3-snapshot-70c6e55" \
+	//org.hyperledger.fabric.base.version="0.3.2"
+	//ENV CORE_CHAINCODE_BUILDLEVEL=1.0.3-snapshot-70c6e55
 
 	// ----------------------------------------------------------------------------------------------------
 	// Add some handy labels
@@ -117,6 +125,7 @@ func generateDockerfile(platform Platform, cds *pb.ChaincodeDeploymentSpec, tls 
 	buf = append(buf, fmt.Sprintf("      %s.chaincode.id.version=\"%s\" \\", metadata.BaseDockerLabel, cds.ChaincodeSpec.ChaincodeId.Version))
 	buf = append(buf, fmt.Sprintf("      %s.chaincode.type=\"%s\" \\", metadata.BaseDockerLabel, cds.ChaincodeSpec.Type.String()))
 	buf = append(buf, fmt.Sprintf("      %s.version=\"%s\" \\", metadata.BaseDockerLabel, metadata.Version))
+	//buf = append(buf, fmt.Sprintf("      %s.version=\"x86_64-1.0.2\" \\", metadata.BaseDockerLabel))
 	buf = append(buf, fmt.Sprintf("      %s.base.version=\"%s\"", metadata.BaseDockerLabel, metadata.BaseVersion))
 
 	// ----------------------------------------------------------------------------------------------------
@@ -124,7 +133,7 @@ func generateDockerfile(platform Platform, cds *pb.ChaincodeDeploymentSpec, tls 
 	// ----------------------------------------------------------------------------------------------------
 	//append version so chaincode build version can be campared against peer build version
 	buf = append(buf, fmt.Sprintf("ENV CORE_CHAINCODE_BUILDLEVEL=%s", metadata.Version))
-
+	//buf = append(buf, fmt.Sprintf("ENV CORE_CHAINCODE_BUILDLEVEL=x86_64-1.0.2"))
 	if tls {
 		const guestTLSPath = "/etc/hyperledger/fabric/peer.crt"
 

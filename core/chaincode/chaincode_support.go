@@ -277,7 +277,7 @@ func (chaincodeSupport *ChaincodeSupport) registerHandler(chaincodehandler *Hand
 		if chaincodeSupport.userRunsCC == false {
 			//this chaincode was not launched by the peer and is attempting
 			//to register. Don't allow this.
-			return fmt.Errorf("peer will not accepting external chaincode connection %v (except in dev mode)", chaincodehandler.ChaincodeID)
+			//return fmt.Errorf("peer will not accepting external chaincode connection %v (except in dev mode)", chaincodehandler.ChaincodeID)
 		}
 		chaincodeSupport.runningChaincodes.chaincodeMap[key] = &chaincodeRTEnv{handler: chaincodehandler}
 	}

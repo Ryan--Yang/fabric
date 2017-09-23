@@ -17,14 +17,14 @@ limitations under the License.
 package dockercontroller
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
-
-	"bufio"
 
 	"regexp"
 
@@ -37,6 +37,13 @@ import (
 	"github.com/op/go-logging"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
+	appsv1beta1 "k8s.io/api/apps/v1beta1"
+	apiv1 "k8s.io/api/core/v1"
+	_ "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	_ "k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -151,20 +158,139 @@ func getDockerHostConfig() *docker.HostConfig {
 	return hostConfig
 }
 
+/*
 func (vm *DockerVM) createContainer(ctxt context.Context, client dockerClient,
 	imageID string, containerID string, args []string,
 	env []string, attachStdout bool) error {
 	config := docker.Config{Cmd: args, Image: imageID, Env: env, AttachStdout: attachStdout, AttachStderr: attachStdout}
 	copts := docker.CreateContainerOptions{Name: containerID, Config: &config, HostConfig: getDockerHostConfig()}
 	dockerLogger.Debugf("Create container: %s", containerID)
+	dockerLogger.Debugf("imageID: %s ", imageID)
+	for _, envi := range env {
+		dockerLogger.Debugf("env : %s ", envi)
+	}
+	for _, arg := range args {
+		dockerLogger.Debugf("arg : %s ", arg)
+	}
 	_, err := client.CreateContainer(copts)
 	if err != nil {
 		return err
 	}
 	dockerLogger.Debugf("Created container: %s", imageID)
 	return nil
-}
+}*/
 
+/*
+[dockercontroller] getDockerHostConfig -> DEBU 4e4 docker container hostconfig NetworkMode: e2ecli_default
+[dockercontroller] createContainer -> DEBU 4e5 Create container: dev-peer0.org1.example.com-mycc-1.0
+[dockercontroller] createContainer -> DEBU 4e6 imageID: dev-peer0.org1.example.com-mycc-1.0-384f11f484b9302df90b453200cfb25174305fce8f53f4e94d45ee3b6cab0ce9
+[dockercontroller] createContainer -> DEBU 4e7 env : CORE_CHAINCODE_ID_NAME=mycc:1.0
+[dockercontroller] createContainer -> DEBU 4e8 env : CORE_PEER_TLS_ENABLED=true
+[dockercontroller] createContainer -> DEBU 4e9 env : CORE_CHAINCODE_LOGGING_LEVEL=info
+[dockercontroller] createContainer -> DEBU 4ea env : CORE_CHAINCODE_LOGGING_SHIM=warning
+[dockercontroller] createContainer -> DEBU 4eb env : CORE_CHAINCODE_LOGGING_FORMAT=%{color}%{time:2006-01-02 15:04:05.000 MST} [%{module}] %{shortfunc} -> %{level:.4s} %{id:03x}%{color:reset} %{message}
+[dockercontroller] createContainer -> DEBU 4ec arg : chaincode
+dockercontroller] createContainer -> DEBU 4ed arg : -peer.address=peer0.org1.example.com:7052
+*/
+
+func (vm *DockerVM) createContainer(ctxt context.Context, client dockerClient,
+	imageID string, containerID string, args []string,
+	env []string, attachStdout bool) error {
+	//  hostConfig := getDockerHostConfig()
+	//	dockerLogger.Debugf("autoremove: %s", hostConfig.AutoRemove)
+	//	dockerLogger.Debugf("containerIDFile: %s", hostConfig.ContainerIDFile)
+	//	//dockerLogger.Debugf("CPUCount: %d", hostConfig.CPUCount)
+	//	//dockerLogger.Debugf("CPUPercent: %d", hostConfig.CPUPercent)
+	//	dockerLogger.Debugf("CPUPreiod: %d", hostConfig.CPUPeriod)
+	//	dockerLogger.Debugf("CPUSet: %s", hostConfig.CPUSet)
+	//	dockerLogger.Debugf("CPUSetCPUs: %s", hostConfig.CPUSetCPUs)
+	//	dockerLogger.Debugf("CPUSetMEMs: %s", hostConfig.CPUSetMEMs)
+	//	dockerLogger.Debugf("DNS: %s", strings.Join(hostConfig.DNS, " :: "))
+	//	dockerLogger.Debugf("DNSOptions: %s", hostConfig.DNSOptions)
+	//	dockerLogger.Debugf("DNSSearch: %s", strings.Join(hostConfig.DNSSearch, " :: "))
+	//	dockerLogger.Debugf("IpcMode: %s", hostConfig.IpcMode)
+	//	dockerLogger.Debugf("KernelMemory: %d", hostConfig.KernelMemory)
+	//	dockerLogger.Debugf("PidMode: %s", hostConfig.PidMode)
+	//	dockerLogger.Debugf("PortBindings: %s", hostConfig.PortBindings)
+	//	dockerLogger.Debugf("UsernsMode: %s", hostConfig.UsernsMode)
+	//	dockerLogger.Debugf("UTSMode: %s", hostConfig.UTSMode)
+
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	k8sNamespace := os.Getenv("K8S_NAMESPACE")
+	if k8sNamespace == "" {
+		k8sNamespace = "yifan"
+		dockerLogger.Debugf("not give the K8S_NAMESPACE value, default the yifan")
+	}
+	k8sApp := os.Getenv("K8S_APP")
+	if k8sApp == "" {
+		k8sApp = "e2e-fabric"
+		dockerLogger.Debugf("not give the K8S_APP value, default the e2e-fabric")
+	}
+	deploymentsClient := clientset.AppsV1beta1().Deployments(k8sNamespace)
+
+	deployment := &appsv1beta1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: containerID,
+		},
+		Spec: appsv1beta1.DeploymentSpec{
+			Replicas: int32Ptr(1),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"io.daocloud.dce.app": k8sApp,
+				},
+			},
+			Template: apiv1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"service":                  containerID,
+						"io.daocloud.dce.template": k8sApp,
+						"io.daocloud.dce.app":      k8sApp,
+					},
+				},
+				Spec: apiv1.PodSpec{},
+			},
+		},
+	}
+
+	var envVar = make([]apiv1.EnvVar, len(env))
+	for i := 0; i < len(env); i++ {
+		ss := strings.Split(env[i], "=")
+		envVar[i].Name = ss[0]
+		envVar[i].Value = ss[1]
+	}
+
+	cmds := make([]string, 3)
+	cmds[0] = "/bin/sh"
+	cmds[1] = "-c"
+	cmds[2] = strings.Join(args, " ")
+
+	container := make([]apiv1.Container, 1)
+	container[0].Env = envVar
+	container[0].Image = imageID
+	container[0].Name = containerID
+	container[0].Command = cmds
+	container[0].ImagePullPolicy = apiv1.PullNever
+	deployment.Spec.Template.Spec.Containers = container
+	// Create Deployment
+	dockerLogger.Debugf("Creating deployment : %s", containerID)
+	result, err := deploymentsClient.Create(deployment)
+	if err != nil {
+		return err
+	}
+	dockerLogger.Debugf("Created deployment %q.\n", result.GetObjectMeta().GetName())
+
+	return nil
+}
 func (vm *DockerVM) deployImage(client dockerClient, ccid ccintf.CCID,
 	args []string, env []string, reader io.Reader) error {
 	id, err := vm.GetVMName(ccid, formatImageName)
@@ -235,7 +361,7 @@ func (vm *DockerVM) Start(ctxt context.Context, ccid ccintf.CCID,
 	vm.stopInternal(ctxt, client, containerID, 0, false, false)
 
 	dockerLogger.Debugf("Start container %s", containerID)
-	err = vm.createContainer(ctxt, client, imageID, containerID, args, env, attachStdout)
+	err = docker.ErrNoSuchImage
 	if err != nil {
 		//if image not found try to create image and retry
 		if err == docker.ErrNoSuchImage {
@@ -345,12 +471,12 @@ func (vm *DockerVM) Start(ctxt context.Context, ccid ccintf.CCID,
 	}
 
 	// start container with HostConfig was deprecated since v1.10 and removed in v1.2
-	err = client.StartContainer(containerID, nil)
+	/*err = client.StartContainer(containerID, nil)
 	if err != nil {
 		dockerLogger.Errorf("start-could not start container: %s", err)
 		return err
 	}
-
+	*/
 	dockerLogger.Debugf("Started container %s", containerID)
 	return nil
 }
@@ -471,3 +597,4 @@ func formatImageName(name string) (string, error) {
 
 	return imageName, nil
 }
+func int32Ptr(i int32) *int32 { return &i }

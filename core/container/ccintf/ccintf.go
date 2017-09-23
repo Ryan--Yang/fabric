@@ -22,7 +22,7 @@ package ccintf
 
 import (
 	"encoding/hex"
-
+        "strings"
 	"github.com/hyperledger/fabric/common/util"
 	pb "github.com/hyperledger/fabric/protos/peer"
 	"golang.org/x/net/context"
@@ -62,6 +62,7 @@ func (ccid *CCID) GetName() string {
 
 	name := ccid.ChaincodeSpec.ChaincodeId.Name
 	if ccid.Version != "" {
+		ccid.Version = strings.Replace(ccid.Version, ".", "-", -1)
 		name = name + "-" + ccid.Version
 	}
 
