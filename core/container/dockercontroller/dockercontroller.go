@@ -162,6 +162,13 @@ func (vm *DockerVM) createContainer(ctxt context.Context, client dockerClient,
 	config := docker.Config{Cmd: args, Image: imageID, Env: env, AttachStdout: attachStdout, AttachStderr: attachStdout}
 	copts := docker.CreateContainerOptions{Name: containerID, Config: &config, HostConfig: getDockerHostConfig()}
 	dockerLogger.Debugf("Create container: %s", containerID)
+	dockerLogger.Debugf("imageID: %s ", imageID)
+	for _, envi := range env {
+		dockerLogger.Debugf("env : %s ", envi)
+	}
+	for _, arg := range args {
+		dockerLogger.Debugf("arg : %s ", arg)
+	}
 	_, err := client.CreateContainer(copts)
 	if err != nil {
 		return err
@@ -169,6 +176,31 @@ func (vm *DockerVM) createContainer(ctxt context.Context, client dockerClient,
 	dockerLogger.Debugf("Created container: %s", imageID)
 	return nil
 }
+
+/*
+func (vm *DockerVM) createContainer(ctxt context.Context, client dockerClient,
+	imageID string, containerID string, args []string,
+	env []string, attachStdout bool) error {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	config := docker.Config{Cmd: args, Image: imageID, Env: env, AttachStdout: attachStdout, AttachStderr: attachStdout}
+	copts := docker.CreateContainerOptions{Name: containerID, Config: &config, HostConfig: getDockerHostConfig()}
+	dockerLogger.Debugf("Create container: %s", containerID)
+	_, err := client.CreateContainer(copts)
+	if err != nil {
+		return err
+	}
+	dockerLogger.Debugf("Created container: %s", imageID)
+	return nil
+}*/
 
 func (vm *DockerVM) deployImage(client dockerClient, ccid ccintf.CCID,
 	args []string, env []string, reader io.Reader) error {
